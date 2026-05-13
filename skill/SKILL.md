@@ -19,12 +19,12 @@ minicpm-v doctor
 
 `doctor` detects the platform (mlx / cuda / cpu), checks `ffmpeg` / `ffprobe`,
 downloads the MiniCPM-V 4.6 weights (~1 GB) to `~/.cache/minicpm-v-local/`, and
-writes `~/.config/minicpm-v-local/config.toml`. Without this step, calls to
-this skill will fail with a "config missing" error.
+writes `~/.config/minicpm-v-local/config.toml`. Without this step, calls below
+will fail with a "config missing" error.
 
 If you (the main model) call this skill and it errors with exit code 2,
 tell the user: "Please run `minicpm-v doctor` in your terminal first to set up
-the local model."
+the local model." Override autodetect with `minicpm-v doctor --backend mlx|cuda|cpu`.
 
 ## When to use
 
@@ -40,25 +40,102 @@ the local model."
 
 ## How to call
 
-单图：
+Two equivalent forms — pick whichever your runtime allows:
+
+**Direct CLI (post `pip install`)**:
+```
+minicpm-v image <path> [--ttl <sec>] [--prompt "..."]
+minicpm-v video <path> [--ttl <sec>] [--prompt "..."]
+```
+
+**Via Skill bundle (relative to this SKILL.md's directory)**:
 ```
 bash scripts/run.sh image <path> [--ttl <sec>]
-```
-读 stdout JSON，使用 `result.caption`。
-
-视频：
-```
 bash scripts/run.sh video <path> [--ttl <sec>]
 ```
-读 stdout JSON，使用 `scenes[]` 做时间轴定位。
 
-## TTL hint
+Both produce identical JSON on stdout.
 
-- 还会继续问图：`--ttl 600`
-- 这是最后一次：`--ttl 0`
-- 不传：使用默认 300s
+## Output schema
 
-## ⚠️ 自动卸载
+### `image` returns
 
-本地 server 会在 **5 分钟无请求**后自动从内存/显存卸载，避免占用资源。
-下次调用会自动重新加载（cold start ≈ 3–15s）。
+```json
+{
+  "version": 1,
+  "input":  { "path": "...", "sha256": "..." },
+  "model":  "mlx-community/MiniCPM-V-4.6-4bit",
+  "result": {
+    "caption":  "<one to several sentences>",
+    "objects":  [],                  // v1: always empty, prompt-driven population in v2
+    "ocr_text": null                 // v1: null placeholder; pass --prompt to elicit
+  },
+  "timing_ms": { "load": 0, "infer": <int> }
+}
+```
+
+**How to use it**: read `result.caption` as the primary description. `objects` and `ocr_text` are non-null only when the user provides a `--prompt` asking for them.
+
+### `video` returns
+
+```json
+{
+  "version": 1,
+  "input":  { "path": "...", "sha256": "...", "duration_s": <float>, "fps": <float> },
+  "model":  "...",
+  "frames": [
+    { "t": <float seconds>, "path": "/tmp/.../scene_NNNN.jpg",
+      "caption": "<frame caption>", "error": null }
+  ],
+  "scenes": [
+    { "start": <float>, "end": <float>, "summary": "<scene caption>",
+      "frame_indices": [<int>, ...] }
+  ],
+  "timing_ms": { "ffmpeg": <int>, "infer_total": <int> }
+}
+```
+
+**How to use it**:
+- `scenes[]` is the high-level timeline — use scene summaries for narrative
+- `frames[]` has per-frame captions with timestamps — use for precise time queries
+- A `frame.error` non-null means that one frame's inference failed; the overall output still ships
+
+## Lifecycle / TTL
+
+The local server auto-unloads after **5 minutes** of inactivity. Tune per call:
+
+| Flag | When to use |
+|---|---|
+| `--ttl 600` | You expect ≥1 more image/video query within ~10 minutes (e.g. user is mid-conversation about a document) |
+| `--ttl 0` | This is the last visual call you'll make in this session |
+| `--keep` | Long-running multi-turn task; pin the server until manual `minicpm-v stop` |
+| `--max-lifetime 1800` | Cap total server uptime at 30 min regardless of TTL renewals |
+
+If you don't pass any flag, the default `idle_timeout` (300 s) applies.
+
+## Lifecycle commands (debugging)
+
+```
+minicpm-v status         # show pid / port / expire_at as JSON
+minicpm-v stop           # graceful SIGTERM, then SIGKILL after 5s
+minicpm-v stop --force   # same as above (force flag reserved for future use)
+```
+
+Use these if you suspect a stale server, or before reporting environment issues to the user.
+
+## Troubleshooting (errors you may surface)
+
+| Symptom | Likely cause | Action |
+|---|---|---|
+| Exit code 2 / "config missing" | `doctor` not yet run | Ask user to run `minicpm-v doctor` |
+| Exit code 3 / "server health check failed" | Backend deps missing or port range exhausted | Ask user to re-run `minicpm-v doctor`, or `rm ~/.run/minicpm-v-local/state.json` and retry |
+| Exit code 4 / HTTP error during inference | Server crashed mid-call | Retry once; if still failing, `minicpm-v stop --force` then retry |
+| Exit code 5 / "non-image" / "non-video" | Bad input path or unsupported format | Verify the file with the user |
+| Exit code 10 / download failure | Network issue during model fetch | Ask user to re-run `minicpm-v doctor` after fixing network |
+| `minicpm-v: command not found` | CLI not on PATH | Ask user to add `~/.local/bin` (Linux/Mac) or `%APPDATA%\Python\Scripts` (Windows) to PATH |
+| Cold-start latency (3–15 s on first call) | Model loading into VRAM/RAM | Normal; subsequent calls are sub-second |
+
+## Notes
+
+- `minicpm-v` is the CLI. The Python distribution name is `minicpm-v-local` (`import minicpm_v_local`).
+- Skill bundle is installed by `bash skill/install.sh` from the project — it places this file plus `scripts/run.sh` into `~/.claude/skills/minicpm-v/` and `~/.deepseek/skills/minicpm-v/` (when the latter exists).

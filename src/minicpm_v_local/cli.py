@@ -34,6 +34,8 @@ def build_parser():
 
     p_doc = sub.add_parser("doctor")
     p_doc.add_argument("--reset", action="store_true")
+    p_doc.add_argument("--backend", choices=["auto", "mlx", "cuda", "cpu"], default=None,
+                       help="Override platform autodetection")
 
     p_img = sub.add_parser("image")
     p_img.add_argument("path", type=Path)
@@ -65,7 +67,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "doctor":
         if args.reset and paths.config_file().exists():
             paths.config_file().unlink()
-        return doctor.run()
+        force = args.backend if args.backend and args.backend != "auto" else None
+        return doctor.run(force_backend=force)
 
     if args.cmd == "status":
         s = read_state(paths.state_file())

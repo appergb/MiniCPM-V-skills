@@ -22,12 +22,12 @@ def _default_prompt(question: str, default: str) -> str:
     return ans or default
 
 
-def run(prompter: Prompter = _default_prompt) -> int:
+def run(prompter: Prompter = _default_prompt, force_backend: str | None = None) -> int:
     print("Running minicpm-v doctor...")
 
     # 1. detect
-    tag = detect.auto_detect()
-    print(f"  [1/8] backend tag: {tag}")
+    tag = force_backend or detect.auto_detect()
+    print(f"  [1/8] backend tag: {tag}{' (forced)' if force_backend else ''}")
 
     # 2. python deps
     backend = get_backend(tag, quant="4bit")

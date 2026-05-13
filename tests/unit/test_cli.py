@@ -114,6 +114,27 @@ def test_doctor_reset_unlinks_config(monkeypatch, tmp_path):
     assert not cfg_file.exists()
 
 
+def test_doctor_backend_flag_passes_through(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli.paths, "config_file", lambda: tmp_path / "config.toml")
+    received = {}
+    monkeypatch.setattr(cli.doctor, "run",
+                        lambda **kw: received.update(kw) or 0)
+    rc = cli.main(["doctor", "--backend", "cuda"])
+    assert rc == 0
+    assert received.get("force_backend") == "cuda"
+
+
+def test_doctor_backend_auto_passes_none(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli.paths, "config_file", lambda: tmp_path / "config.toml")
+    received = {}
+    monkeypatch.setattr(cli.doctor, "run",
+                        lambda **kw: received.update(kw) or 0)
+    rc = cli.main(["doctor", "--backend", "auto"])
+    assert rc == 0
+    # "auto" should NOT pass through as force_backend; doctor should autodetect
+    assert received.get("force_backend") is None
+
+
 def test_status_prints_alive_false_when_no_state(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(cli.paths, "state_file", lambda: tmp_path / "absent.json")
     monkeypatch.setattr(cli, "read_state", lambda p: None)

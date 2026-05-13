@@ -74,6 +74,16 @@ def test_cpu_uses_q4_k_m_default(happy_mocks, monkeypatch):
     assert cfg.quant == "Q4_K_M"
 
 
+def test_force_backend_overrides_autodetect(happy_mocks, monkeypatch):
+    # auto_detect would say mlx, but caller forces cuda
+    monkeypatch.setattr(doctor.detect, "auto_detect", lambda: "mlx")
+    rc = doctor.run(prompter=lambda q, d: d, force_backend="cuda")
+    assert rc == 0
+    cfg, _ = happy_mocks["dump_calls"][-1]
+    assert cfg.backend == "cuda"
+    assert cfg.quant == "bf16"  # cuda default
+
+
 def test_missing_ffmpeg_exits_2(happy_mocks, monkeypatch):
     monkeypatch.setattr(doctor.shutil, "which", lambda x: None)
     rc = doctor.run(prompter=lambda q, d: d)
