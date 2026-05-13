@@ -9,6 +9,23 @@ description: |
 
 # minicpm-v skill
 
+## Prerequisites (first use)
+
+Before this skill works, the user must run **once** in their terminal:
+
+```
+minicpm-v doctor
+```
+
+`doctor` detects the platform (mlx / cuda / cpu), checks `ffmpeg` / `ffprobe`,
+downloads the MiniCPM-V 4.6 weights (~1 GB) to `~/.cache/minicpm-v-local/`, and
+writes `~/.config/minicpm-v-local/config.toml`. Without this step, calls to
+this skill will fail with a "config missing" error.
+
+If you (the main model) call this skill and it errors with exit code 2,
+tell the user: "Please run `minicpm-v doctor` in your terminal first to set up
+the local model."
+
 ## When to use
 
 - 用户给了图片或视频，让你描述、总结、抽信息
