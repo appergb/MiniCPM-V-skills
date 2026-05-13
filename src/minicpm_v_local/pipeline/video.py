@@ -122,8 +122,12 @@ def merge_scenes(frames: list[Frame], *, threshold: float) -> list[dict]:
 def process_video(
     client: VLMClient, video: Path, *,
     model: str, cfg: VideoConfig, prompt: str = DEFAULT_PROMPT,
+    served_model: str | None = None,
     on_frame_done=None,
 ) -> dict:
+    """`model` = identifier reported in the JSON envelope (e.g. HF repo ID).
+    `served_model` = exact name to send in the HTTP `model` field; must match
+    what the server preloaded. If None, falls back to `model`."""
     t0 = time.monotonic()
     info = probe(video)
     sha = hashlib.sha256(video.read_bytes()).hexdigest()
@@ -131,9 +135,10 @@ def process_video(
     frames = extract_keyframes(video, cfg=cfg)
     ffmpeg_ms = int((time.monotonic() - t_ffmpeg_start) * 1000)
 
+    wire_model = served_model or model
     for fr in frames:
         try:
-            fr.caption = client.caption(fr.path, prompt=prompt, model=model)
+            fr.caption = client.caption(fr.path, prompt=prompt, model=wire_model)
         except Exception as e:
             fr.error = str(e)
         if on_frame_done:

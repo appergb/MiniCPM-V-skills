@@ -112,12 +112,15 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     client = VLMClient(base_url=f"http://127.0.0.1:{state.port}")
+    served_model = str(model_dir)  # exact name server was started with — must match
     try:
         if args.cmd == "image":
             result = caption_image(client, args.path, model=backend.artifact_id(),
+                                   served_model=served_model,
                                    prompt=args.prompt or _default_image_prompt())
         else:
             result = process_video(client, args.path, model=backend.artifact_id(),
+                                   served_model=served_model,
                                    cfg=cfg.video, prompt=args.prompt or _default_video_prompt())
     finally:
         client.close()

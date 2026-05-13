@@ -43,7 +43,8 @@ def patched_runtime(tmp_path, monkeypatch):
 
 def test_image_command_returns_pipeline_json(patched_runtime, monkeypatch, capsys, tmp_path):
     expected = {"version": 1, "result": {"caption": "a cat"}}
-    monkeypatch.setattr(cli, "caption_image", lambda c, p, *, model, prompt: expected)
+    monkeypatch.setattr(cli, "caption_image",
+                        lambda c, p, *, model, prompt, served_model=None: expected)
     img = tmp_path / "x.jpg"
     img.write_bytes(b"data")
 
@@ -56,7 +57,7 @@ def test_image_command_returns_pipeline_json(patched_runtime, monkeypatch, capsy
 def test_video_command_returns_pipeline_json(patched_runtime, monkeypatch, capsys, tmp_path):
     expected = {"version": 1, "frames": [], "scenes": []}
     monkeypatch.setattr(cli, "process_video",
-                        lambda c, p, *, model, cfg, prompt: expected)
+                        lambda c, p, *, model, cfg, prompt, served_model=None: expected)
     vid = tmp_path / "v.mp4"
     vid.write_bytes(b"data")
 
@@ -64,6 +65,23 @@ def test_video_command_returns_pipeline_json(patched_runtime, monkeypatch, capsy
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out == expected
+
+
+def test_image_command_uses_local_path_as_served_model(patched_runtime, monkeypatch, capsys, tmp_path):
+    captured = {}
+    def fake_caption_image(client, path, *, model, served_model=None, prompt):
+        captured["model"] = model
+        captured["served_model"] = served_model
+        return {"version": 1, "result": {"caption": "ok"}}
+    monkeypatch.setattr(cli, "caption_image", fake_caption_image)
+    img = tmp_path / "x.jpg"
+    img.write_bytes(b"d")
+
+    cli.main(["image", str(img)])
+    # served_model is the local model_dir path (not the HF repo id)
+    assert captured["model"] == "mlx-community/MiniCPM-V-4.6-4bit"   # repo id
+    assert captured["served_model"] is not None
+    assert captured["served_model"] != captured["model"]              # decoupled
 
 
 def test_ttl_zero_calls_stop_after_pipeline(patched_runtime, monkeypatch, tmp_path):

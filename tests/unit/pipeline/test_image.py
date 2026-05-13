@@ -44,5 +44,22 @@ def test_caption_image_custom_prompt(tmp_path: Path):
     assert out["result"]["caption"] == "OCR text: hi"
 
 
+def test_caption_image_served_model_overrides_wire_model(tmp_path):
+    img = tmp_path / "y.jpg"
+    img.write_bytes(b"x")
+    client = MagicMock(spec=VLMClient)
+    client.caption.return_value = "a thing"
+
+    out = caption_image(client, img,
+                        model="repo/published-name",
+                        served_model="/local/path/to/model")
+
+    # JSON envelope reports the public model id
+    assert out["model"] == "repo/published-name"
+    # but the wire call uses the local path
+    client.caption.assert_called_once_with(img, prompt=DEFAULT_PROMPT,
+                                            model="/local/path/to/model")
+
+
 def test_default_prompt_constant_exported():
     assert isinstance(DEFAULT_PROMPT, str) and len(DEFAULT_PROMPT) > 0

@@ -167,3 +167,29 @@ def test_process_video_on_frame_done_callback(monkeypatch, tmp_path):
     process_video(client, video, model="m", cfg=_cfg(max_frames=5),
                   on_frame_done=lambda f: seen.append(f))
     assert len(seen) >= 1
+
+
+def test_process_video_served_model_overrides_wire_model(monkeypatch, tmp_path):
+    video = tmp_path / "v.mp4"; video.write_bytes(b"v")
+    frames_dir = tmp_path / "frames"
+    monkeypatch.setattr(vid.paths, "frames_tmp_dir", lambda rid: frames_dir)
+    def fake_run(args, **kw):
+        if args[0] == "ffprobe":
+            return _subproc.CompletedProcess(args, 0,
+                stdout=json.dumps({"format": {"duration": "1.0"},
+                                   "streams": [{"r_frame_rate": "30/1"}]}), stderr="")
+        frames_dir.mkdir(parents=True, exist_ok=True)
+        (frames_dir / "scene_0001.jpg").write_bytes(b"j")
+        return _subproc.CompletedProcess(args, 0, stdout="", stderr="frame pts_time:0.5\n")
+    monkeypatch.setattr(vid.subprocess, "run", fake_run)
+    client = MagicMock(spec=VLMClient); client.caption.return_value = "x"
+
+    out = process_video(client, video, model="repo/published-name",
+                        served_model="/local/path/to/model",
+                        cfg=_cfg(max_frames=2))
+
+    # JSON envelope reports the public model id
+    assert out["model"] == "repo/published-name"
+    # but every wire call uses the local path
+    for call in client.caption.call_args_list:
+        assert call.kwargs.get("model") == "/local/path/to/model"

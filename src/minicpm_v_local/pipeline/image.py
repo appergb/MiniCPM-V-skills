@@ -10,10 +10,14 @@ DEFAULT_PROMPT = "Describe the image in detail. List any visible objects and tex
 
 
 def caption_image(client: VLMClient, image_path: Path, *,
-                  model: str, prompt: str = DEFAULT_PROMPT) -> dict:
+                  model: str, prompt: str = DEFAULT_PROMPT,
+                  served_model: str | None = None) -> dict:
+    """`model` = identifier reported in the JSON envelope (e.g. HF repo ID).
+    `served_model` = exact name to send in the HTTP `model` field; must match
+    what the server preloaded. If None, falls back to `model`."""
     t0 = time.monotonic()
     sha = hashlib.sha256(image_path.read_bytes()).hexdigest()
-    text = client.caption(image_path, prompt=prompt, model=model)
+    text = client.caption(image_path, prompt=prompt, model=served_model or model)
     dt = int((time.monotonic() - t0) * 1000)
     return {
         "version": 1,
