@@ -12,3 +12,6 @@ htmlcov/
 .DS_Store
 ~/.cache/minicpm-v-local/
 ~/.run/minicpm-v-local/
+
+# Release artifacts (built locally, attached to GitHub releases)
+*.zip
