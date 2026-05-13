@@ -100,6 +100,37 @@ def test_extract_keyframes_downsamples_to_max_frames(monkeypatch, tmp_path):
     assert len(frames) == 10
 
 
+def test_extract_keyframes_short_video_gets_at_least_one_frame(monkeypatch, tmp_path):
+    """Short clips (duration < fallback_interval) must still yield ≥1 frame.
+
+    Regression for v0.1.2: target_count=int(5/10)=0 used to leave frames empty.
+    """
+    frames_dir = tmp_path / "frames"
+    monkeypatch.setattr(vid.paths, "frames_tmp_dir", lambda rid: frames_dir)
+
+    def fake_run(args, capture_output=False, text=False, check=False):
+        if args[0] == "ffprobe":
+            return _subproc.CompletedProcess(args, 0,
+                stdout=json.dumps({"format": {"duration": "5.0"},
+                                   "streams": [{"r_frame_rate": "30/1"}]}),
+                stderr="")
+        # Both scene-detect and the "guaranteed t=0 frame" code paths write here.
+        frames_dir.mkdir(parents=True, exist_ok=True)
+        if any("select=" in a for a in args):
+            # scene-detect finds nothing — uniform testsrc
+            return _subproc.CompletedProcess(args, 0, stdout="", stderr="")
+        # Single-frame extract: write the requested output path
+        Path(args[-1]).write_bytes(b"j")
+        return _subproc.CompletedProcess(args, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(vid.subprocess, "run", fake_run)
+
+    frames = extract_keyframes(tmp_path / "short.mp4",
+                               cfg=_cfg(fallback_interval=10.0, max_frames=60))
+    assert len(frames) == 1
+    assert frames[0].t == 0.0
+
+
 def test_merge_scenes_identical_captions_merge():
     frames = [Frame(t=i, path=Path(f"/{i}.jpg"), caption="a cat") for i in range(3)]
     scenes = merge_scenes(frames, threshold=0.85)

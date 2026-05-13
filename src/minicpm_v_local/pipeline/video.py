@@ -79,6 +79,19 @@ def extract_keyframes(video: Path, *, cfg: VideoConfig) -> list[Frame]:
             if out.exists():
                 frames.append(Frame(t=t, path=out))
 
+    # Guarantee at least one frame for any non-empty video — short clips
+    # (< fallback_interval) otherwise get 0 frames since target_count
+    # rounds down to 0.
+    if not frames and duration > 0:
+        out = frames_dir / "uniform_0000.jpg"
+        subprocess.run(
+            ["ffmpeg", "-y", "-ss", "0", "-i", str(video),
+             "-frames:v", "1", str(out)],
+            capture_output=True, check=False,
+        )
+        if out.exists():
+            frames.append(Frame(t=0.0, path=out))
+
     frames.sort(key=lambda f: f.t)
     if len(frames) > cfg.max_frames:
         # 等距下采样
