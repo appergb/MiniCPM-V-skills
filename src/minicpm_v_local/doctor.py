@@ -18,8 +18,39 @@ Prompter = Callable[[str, str], str]
 
 
 def _default_prompt(question: str, default: str) -> str:
+    """Fallback prompt — plain stdin input. Used when questionary missing."""
     ans = input(f"{question} [{default}]: ").strip()
     return ans or default
+
+
+# Questionary-based interactive prompter — arrow-key selection, green highlight.
+try:
+    import questionary as _q  # type: ignore
+
+    _QUANT_QUESTION = "Quantization (4bit/5bit/8bit/bf16)"
+
+    def _interactive_prompt(question: str, default: str) -> str:
+        """Smart prompter — uses arrow-key select for known choice sets, plain text otherwise."""
+        if _QUANT_QUESTION in question:
+            choice = _q.select(
+                question,
+                choices=["4bit", "5bit", "8bit", "bf16"],
+                default=default,
+            ).unsafe_ask()
+            return choice or default
+        if "Enable sandbox isolation" in question:
+            yes = _q.confirm(
+                "Enable sandbox isolation? (sandbox-exec / bwrap)",
+                default=default.lower().startswith("y"),
+            ).unsafe_ask()
+            return "y" if yes else "n"
+        # default: free-text with default value
+        ans = _q.text(question, default=default).unsafe_ask()
+        return (ans or default).strip()
+
+    _default_prompt = _interactive_prompt  # use questionary when available
+except ImportError:
+    pass
 
 
 def run(prompter: Prompter = _default_prompt,

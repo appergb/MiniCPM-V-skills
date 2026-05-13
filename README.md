@@ -16,6 +16,14 @@ Captions images and produces timeline-aware video summaries on your machine, so 
 | Linux + NVIDIA GPU | `vLLM` | `pip install -e .[cuda]` |
 | Linux / Windows CPU | `llama-server` (llama.cpp, system binary) | `pip install -e .[cpu]` |
 
+**Optional: faster downloads.** Add the `[fast]` extra (or `pip install hf_transfer`) to enable the multi-connection Hugging Face downloader. Doctor auto-detects it.
+
+```bash
+pip install --user "minicpm_v_local-0.1.1-py3-none-any.whl[mlx,fast]"
+```
+
+**Interactive prompts.** `minicpm-v doctor` shows arrow-key choices (green highlight) for quantization etc. when `questionary` is installed (it's a base dep). Pass `--non-interactive` (`-y`) to skip all prompts and use defaults.
+
 ## Installation
 
 ```bash

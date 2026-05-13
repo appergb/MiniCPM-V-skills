@@ -15,12 +15,14 @@ dependencies = [
   "tomli;python_version<'3.11'",
   "pillow>=10",
   "numpy>=1.26",
+  "questionary>=2.0",
 ]
 
 [project.optional-dependencies]
 mlx = ["mlx-vlm>=0.1"]
 cuda = ["vllm>=0.6"]
 cpu = []                       # llama-server 走系统二进制
+fast = ["hf_transfer>=0.1"]
 dev = ["pytest>=8", "pytest-cov>=5", "pytest-mock>=3.12", "ruff>=0.5"]
 
 [project.scripts]
