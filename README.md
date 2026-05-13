@@ -28,6 +28,9 @@ Then run the doctor to verify the environment and download the model:
 
 ```bash
 minicpm-v doctor
+
+# Or override platform autodetect / skip prompts (headless setups):
+minicpm-v doctor --backend mlx --quant 4bit --non-interactive   # -y / --yes also accepted
 ```
 
 `doctor` checks the platform, picks a backend, asks about isolation mode, writes `~/.config/minicpm-v-local/config.toml`, and fetches the appropriate weights into `~/.cache/minicpm-v-local/<backend>/`.

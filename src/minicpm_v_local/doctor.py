@@ -22,8 +22,14 @@ def _default_prompt(question: str, default: str) -> str:
     return ans or default
 
 
-def run(prompter: Prompter = _default_prompt, force_backend: str | None = None) -> int:
+def run(prompter: Prompter = _default_prompt,
+        force_backend: str | None = None,
+        force_quant: str | None = None,
+        non_interactive: bool = False) -> int:
     print("Running minicpm-v doctor...")
+
+    if non_interactive:
+        prompter = lambda q, d: d  # noqa: E731 — short-circuit all prompts to defaults
 
     # 1. detect
     tag = force_backend or detect.auto_detect()
@@ -44,13 +50,15 @@ def run(prompter: Prompter = _default_prompt, force_backend: str | None = None) 
     print("  [3/8] ffmpeg OK")
 
     # 4. quant
-    if tag == "mlx":
+    if force_quant:
+        quant = force_quant
+    elif tag == "mlx":
         quant = prompter("Quantization (4bit/5bit/8bit/bf16)", "4bit")
     elif tag == "cuda":
         quant = "bf16"
     else:
         quant = "Q4_K_M"
-    print(f"  [4/8] quant: {quant}")
+    print(f"  [4/8] quant: {quant}{' (forced)' if force_quant else ''}")
 
     # 5. download
     backend = get_backend(tag, quant=quant)

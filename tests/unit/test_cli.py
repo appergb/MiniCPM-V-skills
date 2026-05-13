@@ -135,6 +135,38 @@ def test_doctor_backend_auto_passes_none(monkeypatch, tmp_path):
     assert received.get("force_backend") is None
 
 
+def test_doctor_quant_flag_passes_through(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli.paths, "config_file", lambda: tmp_path / "config.toml")
+    received = {}
+    monkeypatch.setattr(cli.doctor, "run",
+                        lambda **kw: received.update(kw) or 0)
+    rc = cli.main(["doctor", "--quant", "8bit"])
+    assert rc == 0
+    assert received.get("force_quant") == "8bit"
+
+
+def test_doctor_non_interactive_flag_passes_through(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli.paths, "config_file", lambda: tmp_path / "config.toml")
+    received = {}
+    monkeypatch.setattr(cli.doctor, "run",
+                        lambda **kw: received.update(kw) or 0)
+    rc = cli.main(["doctor", "--non-interactive"])
+    assert rc == 0
+    assert received.get("non_interactive") is True
+
+
+def test_doctor_combined_flags(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli.paths, "config_file", lambda: tmp_path / "config.toml")
+    received = {}
+    monkeypatch.setattr(cli.doctor, "run",
+                        lambda **kw: received.update(kw) or 0)
+    rc = cli.main(["doctor", "--backend", "cuda", "--quant", "bf16", "-y"])
+    assert rc == 0
+    assert received.get("force_backend") == "cuda"
+    assert received.get("force_quant") == "bf16"
+    assert received.get("non_interactive") is True
+
+
 def test_status_prints_alive_false_when_no_state(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(cli.paths, "state_file", lambda: tmp_path / "absent.json")
     monkeypatch.setattr(cli, "read_state", lambda p: None)

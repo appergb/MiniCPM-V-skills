@@ -36,6 +36,11 @@ def build_parser():
     p_doc.add_argument("--reset", action="store_true")
     p_doc.add_argument("--backend", choices=["auto", "mlx", "cuda", "cpu"], default=None,
                        help="Override platform autodetection")
+    p_doc.add_argument("--quant", default=None,
+                       help="Force quantization (skips the quant prompt; e.g. 4bit / 8bit / bf16 / Q4_K_M)")
+    p_doc.add_argument("--non-interactive", "--yes", "-y",
+                       dest="non_interactive", action="store_true",
+                       help="Headless mode: use defaults for every prompt")
 
     p_img = sub.add_parser("image")
     p_img.add_argument("path", type=Path)
@@ -68,9 +73,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.reset and paths.config_file().exists():
             paths.config_file().unlink()
         force = args.backend if args.backend and args.backend != "auto" else None
-        if force is None:
-            return doctor.run()
-        return doctor.run(force_backend=force)
+        kwargs = {}
+        if force is not None:
+            kwargs["force_backend"] = force
+        if args.quant is not None:
+            kwargs["force_quant"] = args.quant
+        if args.non_interactive:
+            kwargs["non_interactive"] = True
+        return doctor.run(**kwargs)
 
     if args.cmd == "status":
         s = read_state(paths.state_file())

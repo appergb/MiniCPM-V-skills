@@ -84,6 +84,39 @@ def test_force_backend_overrides_autodetect(happy_mocks, monkeypatch):
     assert cfg.quant == "bf16"  # cuda default
 
 
+def test_force_quant_skips_prompt(happy_mocks):
+    # mlx normally prompts for quant; force_quant skips that
+    calls = []
+    rc = doctor.run(prompter=lambda q, d: calls.append(q) or d,
+                    force_quant="bf16")
+    assert rc == 0
+    cfg, _ = happy_mocks["dump_calls"][-1]
+    assert cfg.quant == "bf16"
+    # the quant question should NOT appear in calls (we used force_quant)
+    assert not any("Quantization" in q for q in calls)
+
+
+def test_non_interactive_uses_all_defaults(happy_mocks):
+    # Even on mlx (which normally asks for quant), non_interactive should pick the default 4bit
+    rc = doctor.run(non_interactive=True)
+    assert rc == 0
+    cfg, _ = happy_mocks["dump_calls"][-1]
+    assert cfg.backend == "mlx"
+    assert cfg.quant == "4bit"
+    assert cfg.isolation is False
+    assert cfg.idle_timeout == 300
+
+
+def test_combined_force_backend_quant_non_interactive(happy_mocks, monkeypatch):
+    # Full headless override: explicit backend + quant + non-interactive
+    monkeypatch.setattr(doctor.detect, "auto_detect", lambda: "mlx")
+    rc = doctor.run(force_backend="cuda", force_quant="bf16", non_interactive=True)
+    assert rc == 0
+    cfg, _ = happy_mocks["dump_calls"][-1]
+    assert cfg.backend == "cuda"
+    assert cfg.quant == "bf16"
+
+
 def test_missing_ffmpeg_exits_2(happy_mocks, monkeypatch):
     monkeypatch.setattr(doctor.shutil, "which", lambda x: None)
     rc = doctor.run(prompter=lambda q, d: d)
