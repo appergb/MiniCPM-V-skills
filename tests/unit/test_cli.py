@@ -238,3 +238,29 @@ def test_stop_force_calls_manager_stop(monkeypatch, tmp_path):
     rc = cli.main(["stop", "--force"])
     assert rc == 0
     assert received == {"force": True}
+
+
+def test_image_prompt_preset_resolves(patched_runtime, monkeypatch, capsys, tmp_path):
+    captured = {}
+    def fake_caption(client, path, *, model, served_model=None, prompt):
+        captured["prompt"] = prompt
+        return {"version": 1, "result": {"caption": "ok"}}
+    monkeypatch.setattr(cli, "caption_image", fake_caption)
+    img = tmp_path / "x.jpg"; img.write_bytes(b"d")
+
+    cli.main(["image", str(img), "--prompt-preset", "ui"])
+
+    from minicpm_v_local.pipeline.image import PROMPT_PRESETS
+    assert captured["prompt"] == PROMPT_PRESETS["ui"]
+
+
+def test_image_explicit_prompt_wins_over_preset(patched_runtime, monkeypatch, tmp_path):
+    captured = {}
+    def fake_caption(client, path, *, model, served_model=None, prompt):
+        captured["prompt"] = prompt
+        return {"version": 1, "result": {"caption": "ok"}}
+    monkeypatch.setattr(cli, "caption_image", fake_caption)
+    img = tmp_path / "x.jpg"; img.write_bytes(b"d")
+
+    cli.main(["image", str(img), "--prompt", "custom!", "--prompt-preset", "ui"])
+    assert captured["prompt"] == "custom!"

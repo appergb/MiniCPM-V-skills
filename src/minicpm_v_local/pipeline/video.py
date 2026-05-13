@@ -13,7 +13,38 @@ from minicpm_v_local import paths
 from minicpm_v_local.client import VLMClient
 from minicpm_v_local.config import VideoConfig
 
-DEFAULT_PROMPT = "Describe what's happening in this frame in one sentence."
+DEFAULT_PROMPT = (
+    "Describe this video frame in 2-3 sentences. Include: "
+    "(1) what objects/people are visible and their positions; "
+    "(2) any text or UI elements present; "
+    "(3) what action or change appears to be happening."
+)
+
+PROMPT_PRESETS: dict[str, str] = {
+    "ui": "Describe the UI shown in this frame: buttons, menus, input fields, "
+          "labels, and all visible text. Note any state change vs a static UI.",
+    "photo": "Describe this photo frame: subject, scene, lighting, visible "
+             "people or objects, and any motion or action.",
+    "doc": "List the text content shown in this frame verbatim. Preserve "
+           "paragraphs, headings, list structure, and table rows.",
+    "chart": "Analyze the chart shown in this frame: type, axes, data series, "
+             "key values, and any trend visible across the timeline.",
+}
+
+
+def resolve_prompt(prompt: str | None, preset: str | None) -> str:
+    """`prompt` overrides everything. `preset` picks from PROMPT_PRESETS.
+    Otherwise returns DEFAULT_PROMPT."""
+    if prompt:
+        return prompt
+    if preset:
+        if preset not in PROMPT_PRESETS:
+            raise ValueError(
+                f"unknown prompt preset: {preset!r}. "
+                f"Choose from: {sorted(PROMPT_PRESETS)}"
+            )
+        return PROMPT_PRESETS[preset]
+    return DEFAULT_PROMPT
 
 
 @dataclass

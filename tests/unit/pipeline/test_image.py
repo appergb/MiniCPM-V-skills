@@ -63,3 +63,34 @@ def test_caption_image_served_model_overrides_wire_model(tmp_path):
 
 def test_default_prompt_constant_exported():
     assert isinstance(DEFAULT_PROMPT, str) and len(DEFAULT_PROMPT) > 0
+
+
+def test_resolve_prompt_default():
+    from minicpm_v_local.pipeline.image import resolve_prompt, DEFAULT_PROMPT
+    assert resolve_prompt(None, None) == DEFAULT_PROMPT
+
+
+def test_resolve_prompt_explicit_overrides_preset():
+    from minicpm_v_local.pipeline.image import resolve_prompt
+    out = resolve_prompt("just describe it", "ui")
+    assert out == "just describe it"
+
+
+def test_resolve_prompt_preset_lookup():
+    from minicpm_v_local.pipeline.image import resolve_prompt, PROMPT_PRESETS
+    for name in ("ui", "photo", "doc", "chart"):
+        assert resolve_prompt(None, name) == PROMPT_PRESETS[name]
+
+
+def test_resolve_prompt_unknown_preset_raises():
+    from minicpm_v_local.pipeline.image import resolve_prompt
+    import pytest as _pytest
+    with _pytest.raises(ValueError, match="unknown prompt preset"):
+        resolve_prompt(None, "nonexistent")
+
+
+def test_default_prompt_is_chinese_structured():
+    from minicpm_v_local.pipeline.image import DEFAULT_PROMPT
+    # v0.1.4: Chinese, structured (4-step numbered list)
+    assert "请详细描述" in DEFAULT_PROMPT
+    assert "1." in DEFAULT_PROMPT and "4." in DEFAULT_PROMPT

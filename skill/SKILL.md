@@ -56,6 +56,26 @@ bash scripts/run.sh video <path> [--ttl <sec>]
 
 Both produce identical JSON on stdout.
 
+## Prompt presets (use the right preset for each scenario)
+
+Pass `--prompt-preset <name>` for built-in scenarios:
+
+| Preset | When to use | Output focus |
+|---|---|---|
+| (default) | General image description, Chinese-friendly | 整体场景 + 文字内容 + 物体 + UI 元素 |
+| `ui` | App screenshots, dashboards, settings panels | Buttons, menus, inputs, labels, layout hierarchy |
+| `photo` | Real-world photos, landscapes, portraits | Scene, subject, mood, lighting, composition |
+| `doc` | Document scans, papers, slides, tables | Verbatim text + structure (headings, lists, tables) |
+| `chart` | Bar / line / pie / scatter plots | Chart type, axes, data series, key values, trend |
+
+Example:
+```
+bash scripts/run.sh image dashboard.png --prompt-preset ui
+bash scripts/run.sh image report.png --prompt-preset doc
+```
+
+Or pass `--prompt "<your custom prompt>"` for full control (mutually exclusive with `--prompt-preset`).
+
 ## Output schema
 
 ### `image` returns

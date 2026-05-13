@@ -25,7 +25,11 @@ def _add_common(p):
     p.add_argument("--keep", action="store_true")
     p.add_argument("--isolated", action="store_true")
     p.add_argument("--output", choices=["json", "jsonl"], default="json")
-    p.add_argument("--prompt", default=None)
+    p.add_argument("--prompt", default=None,
+                   help="Override the caption prompt (mutually exclusive with --prompt-preset)")
+    p.add_argument("--prompt-preset", default=None,
+                   choices=["ui", "photo", "doc", "chart"],
+                   help="Use a named preset prompt for common scenarios")
     p.add_argument("--health-timeout", type=int, default=None,
                    help="Override server health check timeout in seconds (default 120)")
 
@@ -122,13 +126,16 @@ def main(argv: list[str] | None = None) -> int:
     served_model = str(model_dir)  # exact name server was started with — must match
     try:
         if args.cmd == "image":
+            from minicpm_v_local.pipeline.image import resolve_prompt as _img_resolve
             result = caption_image(client, args.path, model=backend.artifact_id(),
                                    served_model=served_model,
-                                   prompt=args.prompt or _default_image_prompt())
+                                   prompt=_img_resolve(args.prompt, args.prompt_preset))
         else:
+            from minicpm_v_local.pipeline.video import resolve_prompt as _vid_resolve
             result = process_video(client, args.path, model=backend.artifact_id(),
                                    served_model=served_model,
-                                   cfg=cfg.video, prompt=args.prompt or _default_video_prompt())
+                                   cfg=cfg.video,
+                                   prompt=_vid_resolve(args.prompt, args.prompt_preset))
     finally:
         client.close()
 
