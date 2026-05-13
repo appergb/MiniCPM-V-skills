@@ -68,6 +68,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.reset and paths.config_file().exists():
             paths.config_file().unlink()
         force = args.backend if args.backend and args.backend != "auto" else None
+        if force is None:
+            return doctor.run()
         return doctor.run(force_backend=force)
 
     if args.cmd == "status":

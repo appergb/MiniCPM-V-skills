@@ -107,7 +107,7 @@ def test_doctor_reset_unlinks_config(monkeypatch, tmp_path):
     cfg_file = tmp_path / "config.toml"
     cfg_file.write_text("x = 1\n")
     monkeypatch.setattr(cli.paths, "config_file", lambda: cfg_file)
-    monkeypatch.setattr(cli.doctor, "run", lambda: 0)
+    monkeypatch.setattr(cli.doctor, "run", lambda *a, **kw: 0)
 
     rc = cli.main(["doctor", "--reset"])
     assert rc == 0
