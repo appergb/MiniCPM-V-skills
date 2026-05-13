@@ -26,6 +26,8 @@ def _add_common(p):
     p.add_argument("--isolated", action="store_true")
     p.add_argument("--output", choices=["json", "jsonl"], default="json")
     p.add_argument("--prompt", default=None)
+    p.add_argument("--health-timeout", type=int, default=None,
+                   help="Override server health check timeout in seconds (default 120)")
 
 
 def build_parser():
@@ -53,6 +55,8 @@ def build_parser():
     sub.add_parser("status")
     p_stop = sub.add_parser("stop")
     p_stop.add_argument("--force", action="store_true")
+    p_stop.add_argument("--nuke", action="store_true",
+                        help="Nuclear option: pkill backend server processes + force-clear state")
     return parser
 
 
@@ -88,7 +92,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "stop":
-        manager.stop(force=args.force)
+        if args.nuke:
+            manager.nuke()
+        else:
+            manager.stop(force=args.force)
         return 0
 
     # image / video
@@ -104,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
     state = manager.ensure_warm(
         backend, model_dir,
         port_range=cfg.server.port_range,
-        health_timeout=cfg.server.health_timeout,
+        health_timeout=args.health_timeout if args.health_timeout is not None else cfg.server.health_timeout,
         ttl_seconds=args.ttl if args.ttl is not None else cfg.idle_timeout,
         max_lifetime=cfg.max_lifetime,
         keep=args.keep,

@@ -26,7 +26,7 @@ class VideoConfig:
 class ServerConfig:
     host: str = "127.0.0.1"
     port_range: tuple[int, int] = (8765, 8775)
-    health_timeout: int = 60
+    health_timeout: int = 120  # mlx-vlm cold start can take ~30s on M1/M2
 
 
 @dataclass

@@ -133,3 +133,40 @@ def test_missing_python_deps_exits_2(happy_mocks, monkeypatch):
     rc = doctor.run(prompter=lambda q, d: d)
     assert rc == 2
     assert happy_mocks["dump_calls"] == []
+
+
+def test_mlx_missing_4_6_module_exits_2(happy_mocks, monkeypatch):
+    """mlx backend without minicpmv4_6 module should exit 2 with install hint."""
+    monkeypatch.setattr(doctor.detect, "auto_detect", lambda: "mlx")
+
+    real_import = __import__
+    def fake_import(name, *a, **kw):
+        if name == "mlx_vlm.models" or (name == "mlx_vlm.models.minicpmv4_6"):
+            raise ImportError("no module")
+        if "mlx_vlm.models" in name and "minicpmv4_6" in name:
+            raise ImportError("no module")
+        return real_import(name, *a, **kw)
+
+    # Patch the actual import statement target. The code does:
+    #   from mlx_vlm.models import minicpmv4_6
+    # which translates to importing mlx_vlm.models then getattr minicpmv4_6.
+    import sys
+    # Simulate: mlx_vlm.models has no `minicpmv4_6` attr.
+    fake_models_module = type(sys)('mlx_vlm.models')
+    monkeypatch.setitem(sys.modules, "mlx_vlm.models", fake_models_module)
+    # Remove any cached minicpmv4_6 submodule
+    sys.modules.pop("mlx_vlm.models.minicpmv4_6", None)
+
+    rc = doctor.run(prompter=lambda q, d: d)
+    assert rc == 2
+
+
+def test_proxy_env_warning_does_not_block(happy_mocks, monkeypatch, capsys):
+    """HTTP_PROXY set should only emit a warning, not block doctor."""
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:7890")
+    # Skip mlx 4.6 precheck by using cpu backend
+    monkeypatch.setattr(doctor.detect, "auto_detect", lambda: "cpu")
+    rc = doctor.run(prompter=lambda q, d: d)
+    captured = capsys.readouterr()
+    assert "proxy env vars set" in captured.out
+    assert rc == 0

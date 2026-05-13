@@ -151,3 +151,20 @@ def stop(force: bool = False) -> None:
     except ProcessLookupError:
         pass
     clear_state(paths.state_file())
+
+
+def nuke() -> None:
+    """Nuclear stop: pkill any known backend server processes + force-clear state.
+
+    Useful when state.json is corrupted or normal stop() can't find/kill the
+    server (e.g. process detached, watchdog crashed, port stuck).
+    """
+    import subprocess as _sp
+    patterns = ["mlx_vlm.server", "vllm.entrypoints.openai", "llama-server"]
+    for pattern in patterns:
+        try:
+            _sp.run(["pkill", "-9", "-f", pattern],
+                    capture_output=True, check=False)
+        except FileNotFoundError:
+            pass  # no pkill on this system; best-effort
+    clear_state(paths.state_file())

@@ -140,3 +140,31 @@ def test_stop_term_then_kill(patched_paths, monkeypatch):
     assert signal.SIGTERM in server_sigs
     assert signal.SIGKILL in server_sigs
     assert read_state(state_path) is None
+
+
+def test_nuke_calls_pkill_and_clears_state(patched_paths, monkeypatch):
+    state_path, _ = patched_paths
+    # write a fake state
+    now = datetime.now(timezone.utc)
+    pre = State(
+        backend="mlx", model_repo="x", server_pid=99999, port=8765,
+        started_at=now, watchdog_pid=99998, last_used_at=now,
+        expire_at=now, ttl_seconds=300, max_lifetime_at=None, keep=False,
+        alive=True, cleanup_failed=False,
+    )
+    write_state(state_path, pre)
+
+    pkill_calls = []
+    def fake_run(args, **kw):
+        pkill_calls.append(args)
+        return MagicMock(returncode=0)
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    manager.nuke()
+
+    # Verify pkill invoked for each known backend
+    pkill_patterns = [args for args in pkill_calls if args[0] == "pkill"]
+    assert len(pkill_patterns) >= 1
+    assert any("mlx_vlm.server" in args for args in pkill_patterns)
+    # State cleared
+    assert read_state(state_path) is None

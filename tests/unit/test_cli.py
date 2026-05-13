@@ -185,6 +185,42 @@ def test_doctor_combined_flags(monkeypatch, tmp_path):
     assert received.get("non_interactive") is True
 
 
+def test_image_health_timeout_flag_passes_through(patched_runtime, monkeypatch, tmp_path):
+    monkeypatch.setattr(cli, "caption_image",
+                        lambda *a, **kw: {"ok": True})
+    received = {}
+    def fake_warm(*a, **kw):
+        received.update(kw)
+        s = MagicMock()
+        s.port = 8765
+        return s
+    monkeypatch.setattr(cli.manager, "ensure_warm", fake_warm)
+    img = tmp_path / "x.jpg"; img.write_bytes(b"d")
+
+    cli.main(["image", str(img), "--health-timeout", "300"])
+    assert received["health_timeout"] == 300
+
+
+def test_stop_nuke_calls_manager_nuke(monkeypatch, tmp_path):
+    nuked = []
+    monkeypatch.setattr(cli.manager, "nuke", lambda: nuked.append(True))
+    monkeypatch.setattr(cli.manager, "stop", lambda **kw: nuked.append(("stop", kw)))
+    rc = cli.main(["stop", "--nuke"])
+    assert rc == 0
+    assert nuked == [True]  # only nuke called, not stop
+
+
+def test_stop_normal_calls_manager_stop(monkeypatch):
+    received = {}
+    monkeypatch.setattr(cli.manager, "stop",
+                        lambda force=False: received.update(force=force))
+    monkeypatch.setattr(cli.manager, "nuke", lambda: received.update(nuked=True))
+    rc = cli.main(["stop"])
+    assert rc == 0
+    assert received == {"force": False}
+    assert "nuked" not in received
+
+
 def test_status_prints_alive_false_when_no_state(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(cli.paths, "state_file", lambda: tmp_path / "absent.json")
     monkeypatch.setattr(cli, "read_state", lambda p: None)

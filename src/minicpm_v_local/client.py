@@ -8,7 +8,7 @@ import httpx
 
 
 class VLMClient:
-    def __init__(self, base_url: str, timeout: float = 60.0):
+    def __init__(self, base_url: str, timeout: float = 180.0):
         self.base_url = base_url.rstrip("/")
         self._client = httpx.Client(timeout=timeout)
 

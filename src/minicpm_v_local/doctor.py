@@ -1,5 +1,6 @@
 """Doctor: 8-step first-run setup. Spec §12.1."""
 from __future__ import annotations
+import os
 import shutil
 import sys
 from dataclasses import replace
@@ -73,6 +74,28 @@ def run(prompter: Prompter = _default_prompt,
         print(f"  [2/8] missing deps for {tag}: {msg}")
         return 2
     print(f"  [2/8] python deps OK")
+
+    # 2b. mlx-vlm MiniCPM-V 4.6 module precheck (mlx backend only)
+    if tag == "mlx":
+        try:
+            from mlx_vlm.models import minicpmv4_6  # type: ignore  # noqa: F401
+        except ImportError:
+            print(
+                "  [2/8] mlx-vlm is installed but lacks MiniCPM-V 4.6 module.\n"
+                "        PyPI mlx-vlm 0.5.0 doesn't include it yet. Install from git:\n"
+                "          pip install --user --upgrade --force-reinstall --no-deps "
+                "\"git+https://github.com/Blaizzy/mlx-vlm.git\"\n"
+                "        Then verify:\n"
+                "          python3 -c \"from mlx_vlm.models import minicpmv4_6; print('ok')\""
+            )
+            return 2
+
+    # 2c. HTTP proxy advisory
+    proxy_env = [k for k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
+                 if os.environ.get(k)]
+    if proxy_env:
+        print(f"  [2/8] WARNING: proxy env vars set ({', '.join(proxy_env)}). "
+              "If model download fails with 503, try `unset {0}`.".format(' '.join(proxy_env)))
 
     # 3. ffmpeg
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):

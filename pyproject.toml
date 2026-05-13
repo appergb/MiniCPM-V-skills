@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "minicpm-v-local"
-version = "0.1.2"
+version = "0.1.3"
 description = "Local visual preprocessor using MiniCPM-V 4.6 across MLX/CUDA/CPU backends."
 authors = [{name = "Owner"}]
 license = {text = "Apache-2.0"}
